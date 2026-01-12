@@ -7,10 +7,12 @@ import { Check, X, User, MessageCircle, Trash2 } from 'lucide-react';
 import { RatingModal } from '@/components/jobs/RatingModal';
 import { StarRating } from '@/components/common/StarRating';
 import { showToast } from '@/lib/toast';
+import { ProUpgradeModal } from '@/components/dashboard/ProUpgradeModal';
 
-export function ApplicationManager({ jobId }: { jobId: string }) {
+export function ApplicationManager({ jobId, isPro }: { jobId: string, isPro: boolean }) {
     const [applications, setApplications] = useState<any[]>([]);
     const [ratingModal, setRatingModal] = useState<{ show: boolean, jobId: string, workerId: string, workerName: string } | null>(null);
+    const [showProModal, setShowProModal] = useState(false);
     const supabase = createClient();
 
     useEffect(() => {
@@ -77,6 +79,10 @@ export function ApplicationManager({ jobId }: { jobId: string }) {
                         const worker = item.worker;
 
                         const openWhatsApp = () => {
+                            if (!isPro) {
+                                setShowProModal(true);
+                                return;
+                            }
                             if (!worker?.phone) return alert('No WhatsApp number provided by worker');
                             const msg = encodeURIComponent(`Hi ${worker.fullName}, this is regarding your application for the catering gig on Cater Connect!`);
                             window.open(`https://wa.me/${worker.phone.replace(/\D/g, '')}?text=${msg}`, '_blank');
@@ -186,6 +192,10 @@ export function ApplicationManager({ jobId }: { jobId: string }) {
                     onClose={() => setRatingModal(null)}
                     onSuccess={() => setRatingModal(null)} // Optionally refresh list or UI state
                 />
+            )}
+
+            {showProModal && (
+                <ProUpgradeModal onClose={() => setShowProModal(false)} />
             )}
         </div>
     );

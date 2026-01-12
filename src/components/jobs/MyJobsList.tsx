@@ -19,7 +19,7 @@ interface Job {
     isEmergency: boolean;
 }
 
-export function MyJobsList({ jobs }: { jobs: Job[] }) {
+export function MyJobsList({ jobs, isPro }: { jobs: Job[], isPro: boolean }) {
     const [selectedJob, setSelectedJob] = useState<string | null>(null);
 
     const handleDelete = async (id: string) => {
@@ -118,7 +118,7 @@ export function MyJobsList({ jobs }: { jobs: Job[] }) {
                             </div>
 
                             <div className="space-y-3 max-h-96 overflow-y-auto">
-                                <ApplicationManager jobId={selectedJob} />
+                                <ApplicationManager jobId={selectedJob} isPro={isPro} />
                             </div>
                         </div>
                     </div>

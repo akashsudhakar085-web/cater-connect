@@ -24,7 +24,7 @@ export default async function MyJobsPage() {
                 <p className="text-white/40 text-sm">Manage your active catering gigs</p>
             </header>
 
-            <MyJobsList jobs={ownerJobs} />
+            <MyJobsList jobs={ownerJobs} isPro={user.tier === 'PRO'} />
 
             <BottomNav role="OWNER" />
         </div>
