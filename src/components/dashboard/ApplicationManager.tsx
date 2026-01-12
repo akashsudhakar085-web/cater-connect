@@ -56,6 +56,9 @@ export function ApplicationManager({ jobId, isPro }: { jobId: string, isPro: boo
             const result = await rejectPendingApplications(jobId);
             if (result.success) {
                 showToast({ message: result.message || 'All pending applications rejected', type: 'success' });
+                // Reload applications
+                const apps = await getApplicationsForJob(jobId);
+                setApplications(apps);
             } else {
                 showToast({ message: result.message || 'Failed to clear applications', type: 'error' });
             }
@@ -115,10 +118,10 @@ export function ApplicationManager({ jobId, isPro }: { jobId: string, isPro: boo
                                             {/* Status Badge */}
                                             <div className="flex items-center gap-2">
                                                 <span className={`text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-wider ${app.status === 'COMPLETED' ? 'bg-purple-500/20 text-purple-400' :
-                                                        app.status === 'ACCEPTED' ? 'bg-green-500/20 text-green-400' :
-                                                            app.status === 'STARTED' ? 'bg-blue-500/20 text-blue-400' :
-                                                                app.status === 'REJECTED' ? 'bg-red-500/20 text-red-400' :
-                                                                    'bg-yellow-500/20 text-yellow-500'
+                                                    app.status === 'ACCEPTED' ? 'bg-green-500/20 text-green-400' :
+                                                        app.status === 'STARTED' ? 'bg-blue-500/20 text-blue-400' :
+                                                            app.status === 'REJECTED' ? 'bg-red-500/20 text-red-400' :
+                                                                'bg-yellow-500/20 text-yellow-500'
                                                     }`}>
                                                     {app.status}
                                                 </span>

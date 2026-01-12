@@ -3,7 +3,7 @@
 import { db } from '@/db';
 import { applications, jobs, users, ratings } from '@/db/schema';
 import { createClient } from '@/lib/supabase-server';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, or } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { createNotification } from './notification';
 
@@ -205,6 +205,32 @@ export async function rejectPendingApplications(jobId: string) {
     } catch (error: any) {
         console.error('Reject pending error:', error);
         return { success: false, message: error.message || 'Failed to reject applications' };
+    }
+}
+
+export async function clearCompletedApplications() {
+    try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return { success: false, message: 'Not authenticated' };
+
+        // Delete all completed/rejected applications for this worker
+        await db.delete(applications)
+            .where(
+                and(
+                    eq(applications.workerId, user.id as any),
+                    or(
+                        eq(applications.status, 'COMPLETED'),
+                        eq(applications.status, 'REJECTED')
+                    )
+                )
+            );
+
+        revalidatePath('/dashboard');
+        return { success: true, message: 'Completed jobs cleared' };
+    } catch (error: any) {
+        console.error('Clear completed error:', error);
+        return { success: false, message: error.message || 'Failed to clear completed jobs' };
     }
 }
 

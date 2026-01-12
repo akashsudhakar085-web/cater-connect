@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase-client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Briefcase, MapPin, Clock, AlertCircle, MessageCircle, Check } from 'lucide-react';
 import { getWorkerJobFeed } from '@/actions/job';
-import { applyToJob } from '@/actions/application';
+import { applyToJob, clearCompletedApplications } from '@/actions/application';
 import { ProUpgradeModal } from './ProUpgradeModal';
 import { showToast } from '@/lib/toast';
 import { StarRating } from '@/components/common/StarRating';
@@ -20,6 +20,21 @@ export function WorkerDashboard({ user }: { user: any }) {
         queryKey: ['jobs'],
         queryFn: async () => await getWorkerJobFeed(),
     });
+
+    const handleClearCompleted = async () => {
+        if (!confirm('Clear all completed and rejected jobs from your feed?')) return;
+        try {
+            const result = await clearCompletedApplications();
+            if (result.success) {
+                showToast({ message: result.message || 'Completed jobs cleared', type: 'success' });
+                queryClient.invalidateQueries({ queryKey: ['jobs'] });
+            } else {
+                showToast({ message: result.message || 'Failed to clear jobs', type: 'error' });
+            }
+        } catch (error) {
+            showToast({ message: 'An error occurred', type: 'error' });
+        }
+    };
 
     useEffect(() => {
         const channel = supabase
@@ -44,10 +59,22 @@ export function WorkerDashboard({ user }: { user: any }) {
         </div>
     );
 
+    const hasCompletedOrRejected = jobs?.some(item =>
+        item.applicationStatus === 'COMPLETED' || item.applicationStatus === 'REJECTED'
+    );
+
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between px-1">
                 <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Intel Feed</h2>
+                {hasCompletedOrRejected && (
+                    <button
+                        onClick={handleClearCompleted}
+                        className="text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-300 flex items-center gap-1"
+                    >
+                        <span>Clear Completed</span>
+                    </button>
+                )}
             </div>
 
             <div className="grid gap-4">
