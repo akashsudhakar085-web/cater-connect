@@ -5,13 +5,25 @@ import { users } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { createClient } from '@/lib/supabase-server';
 
-export async function syncUserProfile(role: 'OWNER' | 'WORKER', fullName: string, phone: string) {
+// Generate unique referral code from user's name: First 4 letters + 4 numbers (e.g., SANA4022)
+function generateReferralCode(fullName: string): string {
+    // Extract first 4 letters from name (remove spaces, convert to uppercase)
+    const nameLetters = fullName.replace(/[^a-zA-Z]/g, '').toUpperCase();
+    const first4Letters = nameLetters.substring(0, 4).padEnd(4, 'X'); // Pad with X if name is short
+
+    // Generate 4 random numbers
+    const numbers = Math.floor(1000 + Math.random() * 9000).toString(); // Random 4-digit number
+
+    return first4Letters + numbers;
+}
+
+export async function syncUserProfile(role: 'OWNER' | 'WORKER', fullName: string, phone: string, referralCodeParam?: string) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) throw new Error('Not authenticated');
 
-    console.log('syncUserProfile called with:', { userId: user.id, email: user.email, role, fullName, phone });
+    console.log('syncUserProfile called with:', { userId: user.id, email: user.email, role, fullName, phone, referralCodeParam });
 
     try {
         // Use Supabase Auth ID as the source of truth
@@ -30,6 +42,47 @@ export async function syncUserProfile(role: 'OWNER' | 'WORKER', fullName: string
             }
 
             console.log('Attempting to insert new user...');
+
+            // Check for referral code - prioritize parameter, fallback to metadata
+            const referralCode = referralCodeParam || user.user_metadata?.referred_by_code;
+            let referredBy = null;
+
+            if (referralCode) {
+                console.log('Processing referral code:', referralCode);
+                const referrer = await db.select().from(users).where(eq(users.referralCode, referralCode)).limit(1);
+
+                if (referrer.length > 0) {
+                    const refUser = referrer[0];
+                    referredBy = refUser.id;
+
+                    // Increment referrer count
+                    // Logic: Cap at 5 for reward sake, but we can track total invites if we want. 
+                    // User requested one-time reward at 5.
+                    const newCount = (refUser.referralCount || 0) + 1;
+
+                    // Grant Pro if they hit 5
+                    if (newCount === 5) {
+                        const proExpiry = new Date();
+                        proExpiry.setMonth(proExpiry.getMonth() + 1); // 1 month from now
+
+                        await db.update(users)
+                            .set({
+                                referralCount: newCount,
+                                proExpiresAt: proExpiry
+                            })
+                            .where(eq(users.id, refUser.id as any));
+
+                        console.log('Referrer reached 5! Granted 1 month Pro.');
+                    } else {
+                        await db.update(users)
+                            .set({ referralCount: newCount })
+                            .where(eq(users.id, refUser.id as any));
+
+                        console.log(`Referrer count updated to ${newCount}`);
+                    }
+                }
+            }
+
             // Insert new user with Supabase Auth ID
             await db.insert(users).values({
                 id: user.id as any,
@@ -37,6 +90,8 @@ export async function syncUserProfile(role: 'OWNER' | 'WORKER', fullName: string
                 fullName,
                 role,
                 phone,
+                referralCode: generateReferralCode(fullName), // Generate code from user's name + 4 numbers
+                referredBy: referredBy, // Link to referrer
             });
             console.log('User inserted successfully');
         } else {
@@ -49,9 +104,16 @@ export async function syncUserProfile(role: 'OWNER' | 'WORKER', fullName: string
             }
 
             console.log('Attempting to update existing user...');
+
+            // Logic to add referral code if missing (migration for existing users)
+            const updateData: any = { fullName, role, phone };
+            if (!existingUser.referralCode) {
+                updateData.referralCode = generateReferralCode(fullName);
+            }
+
             // Update existing user
             await db.update(users)
-                .set({ fullName, role, phone })
+                .set(updateData)
                 .where(eq(users.id, user.id as any));
             console.log('User updated successfully');
         }
@@ -101,5 +163,57 @@ export async function getCurrentUser() {
             dbUser: null,
             error: 'Database connection failed'
         };
+    }
+}
+
+export async function getAvailableWorkers() {
+    const supabase = await createClient();
+
+    // In a real app, we might filter by 'WORKER' role if strictly enforced,
+    // or just return all users who have listed themselves.
+    const { data: workers, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('role', 'WORKER')
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        console.error('Error fetching workers:', error);
+        return [];
+    }
+
+    return workers;
+}
+
+// Action to generate a referral code for an existing user if they don't have one
+export async function generateMissingReferralCode() {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) throw new Error('Not authenticated');
+
+    try {
+        const existingUsers = await db.select().from(users).where(eq(users.id, user.id as any)).limit(1);
+        const existingUser = existingUsers[0];
+
+        if (!existingUser) throw new Error('User profile not found');
+
+        if (existingUser.referralCode) {
+            return existingUser.referralCode; // Already exists
+        }
+
+        // Generate and save new code
+        // Use user metadata name or fallback to full name from DB
+        const fullName = existingUser.fullName || user.user_metadata?.full_name || 'User';
+        const newCode = generateReferralCode(fullName);
+
+        await db.update(users)
+            .set({ referralCode: newCode })
+            .where(eq(users.id, user.id as any));
+
+        return newCode;
+    } catch (error: any) {
+        console.error('Error generating missing referral code:', error);
+        throw new Error('Failed to generate referral code');
     }
 }

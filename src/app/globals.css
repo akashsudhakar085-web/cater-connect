@@ -68,3 +68,8 @@ body {
     @apply bg-white/5 border border-white/10 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary/50 outline-none transition-all;
   }
 }
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}

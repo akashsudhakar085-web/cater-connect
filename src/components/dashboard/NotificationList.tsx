@@ -65,7 +65,7 @@ export function NotificationList({ userId }: { userId: string }) {
                                 onClick={() => markAsRead(notif.id)}
                                 className="text-[10px] font-black text-primary uppercase hover:underline"
                             >
-                                Clear
+                                Mark Read
                             </button>
                         )}
                     </div>

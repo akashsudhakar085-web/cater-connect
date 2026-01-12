@@ -1,18 +1,28 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense, useEffect } from 'react';
 import { createClient } from '@/lib/supabase-client';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
-export default function SignupPage() {
+function SignupForm() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [referralCode, setReferralCode] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
+
     const supabase = createClient();
     const router = useRouter();
+    const searchParams = useSearchParams();
+
+    useEffect(() => {
+        const ref = searchParams.get('ref');
+        if (ref) {
+            setReferralCode(ref);
+        }
+    }, [searchParams]);
 
     const handleSignUp = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -24,11 +34,19 @@ export default function SignupPage() {
         setLoading(true);
         setError(null);
 
+        // Build callback URL with referral code if present
+        const callbackUrl = referralCode
+            ? `${window.location.origin}/auth/callback?ref=${referralCode}`
+            : `${window.location.origin}/auth/callback`;
+
         const { error } = await supabase.auth.signUp({
             email,
             password,
             options: {
-                emailRedirectTo: `${window.location.origin}/auth/callback`,
+                emailRedirectTo: callbackUrl,
+                data: {
+                    referred_by_code: referralCode, // Pass to Supabase metadata
+                }
             },
         });
 
@@ -129,5 +147,13 @@ export default function SignupPage() {
                 </div>
             </div>
         </div>
+    );
+}
+
+export default function SignupPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-white/20">Loading...</div>}>
+            <SignupForm />
+        </Suspense>
     );
 }

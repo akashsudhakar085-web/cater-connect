@@ -1,16 +1,26 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { syncUserProfile } from '@/actions/user';
 
-export default function RoleSelectionPage() {
+function RoleSelectionForm() {
     const [role, setRole] = useState<'OWNER' | 'WORKER' | null>(null);
     const [fullName, setFullName] = useState('');
     const [phone, setPhone] = useState('');
+    const [referralCode, setReferralCode] = useState('');
     const [loading, setLoading] = useState(false);
     const [checking, setChecking] = useState(true);
     const router = useRouter();
+    const searchParams = useSearchParams();
+
+    useEffect(() => {
+        // Extract referral code from URL
+        const ref = searchParams.get('ref');
+        if (ref) {
+            setReferralCode(ref);
+        }
+    }, [searchParams]);
 
     useEffect(() => {
         async function checkProfile() {
@@ -38,7 +48,7 @@ export default function RoleSelectionPage() {
         if (!role || !fullName || !phone) return;
         setLoading(true);
         try {
-            await syncUserProfile(role, fullName, phone);
+            await syncUserProfile(role, fullName, phone, referralCode || undefined);
             router.push('/dashboard');
         } catch (error) {
             console.error(error);
@@ -88,6 +98,18 @@ export default function RoleSelectionPage() {
                         <p className="text-[10px] text-white/20 ml-1">Used for real-time hiring & communication</p>
                     </div>
 
+                    <div className="space-y-1.5">
+                        <label className="text-xs font-bold uppercase tracking-widest text-white/40 ml-1">Referral Code (Optional)</label>
+                        <input
+                            type="text"
+                            value={referralCode}
+                            onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                            className="input-field w-full py-4"
+                            placeholder="Enter referral code"
+                        />
+                        <p className="text-[10px] text-white/20 ml-1">Get rewards when you use a friend's code</p>
+                    </div>
+
                     <div className="space-y-3">
                         <p className="text-xs font-bold uppercase tracking-widest text-white/40 ml-1">Choose your station</p>
                         <div className="grid grid-cols-2 gap-3">
@@ -125,5 +147,17 @@ export default function RoleSelectionPage() {
                 </button>
             </div>
         </div>
+    );
+}
+
+export default function RoleSelectionPage() {
+    return (
+        <Suspense fallback={
+            <div className="flex items-center justify-center min-h-screen">
+                <div className="animate-pulse text-primary font-bold uppercase tracking-widest text-sm">Loading...</div>
+            </div>
+        }>
+            <RoleSelectionForm />
+        </Suspense>
     );
 }

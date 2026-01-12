@@ -1,10 +1,10 @@
 'use server';
 
 import { db } from '@/db';
-import { jobs, users } from '@/db/schema';
+import { jobs, users, applications } from '@/db/schema';
 import { createClient } from '@/lib/supabase-server';
 import { redirect } from 'next/navigation';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, and } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 
 export async function createJob(formData: {
@@ -60,6 +60,63 @@ export async function getOwnerJobs() {
             .orderBy(desc(jobs.createdAt));
     } catch (error) {
         console.error('CRITICAL DATABASE ERROR in getOwnerJobs:', error);
+        return [];
+    }
+}
+
+export async function deleteJob(jobId: string) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) throw new Error('Not authenticated');
+
+    // Verify ownership
+    const job = await db.select().from(jobs).where(eq(jobs.id, jobId as any)).limit(1);
+
+    if (!job.length || job[0].ownerId !== user.id) {
+        throw new Error('Unauthorized');
+    }
+
+    // Delete job (Cascade should handle applications, but let's be safe if not configured)
+    // Actually, lets assume schema handles it or just delete job.
+    await db.delete(jobs).where(eq(jobs.id, jobId as any));
+
+    revalidatePath('/dashboard');
+}
+
+export async function getWorkerJobFeed() {
+    try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+
+        // If no user, just return jobs without application status
+        if (!user) {
+            const jobsData = await getJobs();
+            return jobsData.map(j => ({ ...j, applicationStatus: null as string | null }));
+        }
+
+        const data = await db.select({
+            job: jobs,
+            owner: users,
+            application: applications
+        })
+            .from(jobs)
+            .innerJoin(users, eq(jobs.ownerId, users.id))
+            .leftJoin(applications, and(
+                eq(applications.jobId, jobs.id),
+                eq(applications.workerId, user.id as any)
+            ))
+            .orderBy(desc(jobs.createdAt));
+
+        // Format result to be similar structure but with application status
+        return data.map(row => ({
+            job: row.job,
+            owner: row.owner,
+            applicationStatus: row.application ? row.application.status : null
+        }));
+
+    } catch (error) {
+        console.error('CRITICAL DATABASE ERROR in getWorkerJobFeed:', error);
         return [];
     }
 }

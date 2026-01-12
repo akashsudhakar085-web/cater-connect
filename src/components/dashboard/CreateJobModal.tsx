@@ -3,8 +3,10 @@
 import { useState } from 'react';
 import { X, AlertCircle } from 'lucide-react';
 import { createJob } from '@/actions/job';
+import { ProUpgradeModal } from './ProUpgradeModal';
+import { showToast } from '@/lib/toast';
 
-export function CreateJobModal({ onClose }: { onClose: () => void }) {
+export function CreateJobModal({ user, onClose }: { user: any, onClose: () => void }) {
     const [title, setTitle] = useState('');
     const [pay, setPay] = useState('');
     const [category, setCategory] = useState('Catering');
@@ -12,6 +14,7 @@ export function CreateJobModal({ onClose }: { onClose: () => void }) {
     const [isEmergency, setIsEmergency] = useState(false);
     const [loading, setLoading] = useState(false);
     const [showCities, setShowCities] = useState(false);
+    const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
     const categories = [
         'Catering', 'DJ', 'House Management', 'House Shifting',
@@ -29,8 +32,29 @@ export function CreateJobModal({ onClose }: { onClose: () => void }) {
         c.toLowerCase().includes(location.toLowerCase())
     ).slice(0, 5);
 
+    const handleEmergencyToggle = (checked: boolean) => {
+        if (checked && user.tier === 'FREE') {
+            setShowUpgradeModal(true);
+            return;
+        }
+        setIsEmergency(checked);
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        // Validation
+        if (!title || !location || !pay) {
+            showToast({ message: 'Please fill in all fields: Title, Location, and Pay.', type: 'warning' });
+            return;
+        }
+
+        const payAmount = parseFloat(pay);
+        if (payAmount < 300) {
+            showToast({ message: 'Daily pay must be at least ₹300.', type: 'warning' });
+            return;
+        }
+
         setLoading(true);
         try {
             await createJob({
@@ -43,7 +67,7 @@ export function CreateJobModal({ onClose }: { onClose: () => void }) {
             onClose();
         } catch (error) {
             console.error(error);
-            alert('Failed to post job');
+            showToast({ message: 'Failed to create job. Please try again.', type: 'error' });
         } finally {
             setLoading(false);
         }
@@ -73,14 +97,15 @@ export function CreateJobModal({ onClose }: { onClose: () => void }) {
 
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Pay / HR ($)</label>
+                            <label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Daily Pay (₹)</label>
                             <input
                                 type="number"
                                 required
+                                min="300"
                                 value={pay}
                                 onChange={(e) => setPay(e.target.value)}
                                 className="input-field w-full py-4 px-5"
-                                placeholder="0.00"
+                                placeholder="300"
                             />
                         </div>
                         <div className="space-y-2">
@@ -105,8 +130,8 @@ export function CreateJobModal({ onClose }: { onClose: () => void }) {
                             value={location}
                             onFocus={() => setShowCities(true)}
                             onChange={(e) => {
+                                location.length === 0 && setShowCities(true);
                                 setLocation(e.target.value);
-                                setShowCities(true);
                             }}
                             className="input-field w-full py-4 px-5"
                             placeholder="e.g. Palani"
@@ -130,11 +155,11 @@ export function CreateJobModal({ onClose }: { onClose: () => void }) {
                         )}
                     </div>
 
-                    <label className="flex items-center gap-3 p-4 rounded-2xl border-2 border-dashed border-red-500/20 bg-red-500/5 cursor-pointer transition-all hover:bg-red-500/10">
+                    <label className={`flex items-center gap-3 p-4 rounded-2xl border-2 border-dashed transition-all cursor-pointer ${isEmergency ? 'border-red-500 bg-red-500/10' : 'border-red-500/20 bg-red-500/5 hover:bg-red-500/10'}`}>
                         <input
                             type="checkbox"
                             checked={isEmergency}
-                            onChange={(e) => setIsEmergency(e.target.checked)}
+                            onChange={(e) => handleEmergencyToggle(e.target.checked)}
                             className="w-5 h-5 accent-red-500"
                         />
                         <div className="flex items-center gap-2 text-red-400">
@@ -151,6 +176,8 @@ export function CreateJobModal({ onClose }: { onClose: () => void }) {
                         {loading ? 'INITIALIZING...' : 'Deploy Gig'}
                     </button>
                 </form>
+
+                {showUpgradeModal && <ProUpgradeModal onClose={() => setShowUpgradeModal(false)} />}
             </div>
         </div>
     );

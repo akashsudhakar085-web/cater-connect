@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Briefcase, User, Bell } from 'lucide-react';
+import { Home, Briefcase, User, Bell, MessageCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export const BottomNav = ({ role }: { role: 'OWNER' | 'WORKER' }) => {
@@ -11,6 +11,7 @@ export const BottomNav = ({ role }: { role: 'OWNER' | 'WORKER' }) => {
     const navItems = [
         { label: 'Feed', icon: Home, href: '/dashboard' },
         { label: 'Gigs', icon: Briefcase, href: role === 'OWNER' ? '/dashboard/my-jobs' : '/dashboard/my-applications' },
+        { label: 'Chat', icon: MessageCircle, href: '/dashboard/chat' },
         { label: 'Alerts', icon: Bell, href: '/dashboard/notifications' },
         { label: 'Profile', icon: User, href: '/dashboard/profile' },
     ];
