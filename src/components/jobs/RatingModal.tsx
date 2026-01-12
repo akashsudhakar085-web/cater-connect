@@ -21,7 +21,7 @@ export function RatingModal({ jobId, ratedUserId, ratedUserName, onClose, onSucc
 
     const handleSubmit = async () => {
         if (rating === 0) {
-            alert('Please select a star rating');
+            showToast({ message: 'Please select a star rating', type: 'error' });
             return;
         }
         setSubmitting(true);

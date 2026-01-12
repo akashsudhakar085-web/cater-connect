@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { syncUserProfile } from '@/actions/user';
+import { showToast } from '@/lib/toast';
 
 function RoleSelectionForm() {
     const [role, setRole] = useState<'OWNER' | 'WORKER' | null>(null);
@@ -52,7 +53,7 @@ function RoleSelectionForm() {
             router.push('/dashboard');
         } catch (error) {
             console.error(error);
-            alert('Failed to save profile');
+            showToast({ message: 'Failed to save profile', type: 'error' });
         } finally {
             setLoading(false);
         }

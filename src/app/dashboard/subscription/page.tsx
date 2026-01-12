@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase-client';
 import { Check, Loader2, Shield, Zap } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { showToast } from '@/lib/toast';
 
 export default function SubscriptionPage() {
     const [loading, setLoading] = useState(true);
@@ -62,10 +63,10 @@ export default function SubscriptionPage() {
                     .eq('id', user.id);
                 if (error) throw error;
                 setTier('FREE');
-                alert('Downgraded to Free plan.');
+                showToast({ message: 'Downgraded to Free plan', type: 'success' });
             } catch (error) {
                 console.error(error);
-                alert('Failed to downgrade.');
+                showToast({ message: 'Failed to downgrade', type: 'error' });
             } finally {
                 setUpgrading(false);
             }
@@ -77,7 +78,7 @@ export default function SubscriptionPage() {
         try {
             const res = await loadRazorpay();
             if (!res) {
-                alert('Razorpay SDK failed to load');
+                showToast({ message: 'Razorpay SDK failed to load', type: 'error' });
                 return;
             }
 
@@ -86,7 +87,7 @@ export default function SubscriptionPage() {
             const order = await response.json();
 
             if (order.error) {
-                alert('Server error. Are keys set?');
+                showToast({ message: 'Server error. Please try again', type: 'error' });
                 return;
             }
 
@@ -109,10 +110,10 @@ export default function SubscriptionPage() {
                             .eq('id', user.id);
                         if (error) throw error;
                         setTier('PRO');
-                        alert('Payment Successful! Welcome to Pro.');
+                        showToast({ message: 'Payment Successful! Welcome to Pro', type: 'success' });
                     } catch (err) {
                         console.error(err);
-                        alert('Payment success but DB update failed. Contact support.');
+                        showToast({ message: 'Payment success but update failed. Contact support', type: 'error' });
                     }
                 },
                 prefill: {
@@ -130,7 +131,7 @@ export default function SubscriptionPage() {
 
         } catch (error) {
             console.error('Error in payment flow:', error);
-            alert('Something went wrong with payment initialization.');
+            showToast({ message: 'Something went wrong with payment', type: 'error' });
         } finally {
             setUpgrading(false);
         }

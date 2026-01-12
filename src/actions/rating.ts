@@ -88,3 +88,22 @@ export async function hasUserRated(jobId: string, ratedUserId: string) {
 
     return existing.length > 0;
 }
+
+export async function getUserRating(jobId: string, ratedUserId: string) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+
+    const existing = await db.select()
+        .from(ratings)
+        .where(
+            and(
+                eq(ratings.jobId, jobId as any),
+                eq(ratings.raterId, user.id as any),
+                eq(ratings.ratedUserId, ratedUserId as any)
+            )
+        )
+        .limit(1);
+
+    return existing[0] || null;
+}

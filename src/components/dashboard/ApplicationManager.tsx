@@ -5,13 +5,16 @@ import { createClient } from '@/lib/supabase-client';
 import { updateApplicationStatus, getApplicationsForJob, rejectPendingApplications } from '@/actions/application';
 import { Check, X, User, MessageCircle, Trash2 } from 'lucide-react';
 import { RatingModal } from '@/components/jobs/RatingModal';
+import { ViewRatingModal } from '@/components/jobs/ViewRatingModal';
 import { StarRating } from '@/components/common/StarRating';
 import { showToast } from '@/lib/toast';
 import { ProUpgradeModal } from '@/components/dashboard/ProUpgradeModal';
+import { getUserRating } from '@/actions/rating';
 
 export function ApplicationManager({ jobId, isPro }: { jobId: string, isPro: boolean }) {
     const [applications, setApplications] = useState<any[]>([]);
     const [ratingModal, setRatingModal] = useState<{ show: boolean, jobId: string, workerId: string, workerName: string } | null>(null);
+    const [viewRatingModal, setViewRatingModal] = useState<{ workerName: string, rating: number, review: string } | null>(null);
     const [showProModal, setShowProModal] = useState(false);
     const supabase = createClient();
 
@@ -80,7 +83,10 @@ export function ApplicationManager({ jobId, isPro }: { jobId: string, isPro: boo
                         const hasRated = item.hasRated;
 
                         const openWhatsApp = () => {
-                            if (!worker?.phone) return alert('No WhatsApp number provided by worker');
+                            if (!worker?.phone) {
+                                showToast({ message: 'No WhatsApp number provided by worker', type: 'error' });
+                                return;
+                            }
                             const msg = encodeURIComponent(`Hi ${worker.fullName}, this is regarding your application for the catering gig on Cater Connect!`);
                             window.open(`https://wa.me/${worker.phone.replace(/\D/g, '')}?text=${msg}`, '_blank');
                         };
@@ -182,9 +188,21 @@ export function ApplicationManager({ jobId, isPro }: { jobId: string, isPro: boo
                                                     Rate Worker
                                                 </button>
                                             ) : (
-                                                <div className="px-3 py-1.5 bg-white/5 text-white/40 rounded-lg text-xs font-black uppercase tracking-widest flex items-center gap-1 cursor-default">
-                                                    Rated
-                                                </div>
+                                                <button
+                                                    onClick={async () => {
+                                                        const existingRating = await getUserRating(jobId, app.workerId);
+                                                        if (existingRating) {
+                                                            setViewRatingModal({
+                                                                workerName: worker?.fullName || 'Worker',
+                                                                rating: existingRating.rating,
+                                                                review: existingRating.review || ''
+                                                            });
+                                                        }
+                                                    }}
+                                                    className="px-3 py-1.5 bg-white/5 text-white/40 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-white/10 transition-all flex items-center gap-1 cursor-pointer"
+                                                >
+                                                    Rated ✓
+                                                </button>
                                             )
                                         )}
                                     </div>
@@ -214,6 +232,15 @@ export function ApplicationManager({ jobId, isPro }: { jobId: string, isPro: boo
 
             {showProModal && (
                 <ProUpgradeModal onClose={() => setShowProModal(false)} />
+            )}
+
+            {viewRatingModal && (
+                <ViewRatingModal
+                    ratedUserName={viewRatingModal.workerName}
+                    rating={viewRatingModal.rating}
+                    review={viewRatingModal.review}
+                    onClose={() => setViewRatingModal(null)}
+                />
             )}
         </div>
     );

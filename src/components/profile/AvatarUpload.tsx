@@ -4,6 +4,7 @@ import { useState, useRef } from 'react';
 import { createClient } from '@/lib/supabase-client';
 import { User, Camera, Loader2 } from 'lucide-react';
 import Image from 'next/image';
+import { showToast } from '@/lib/toast';
 
 interface AvatarUploadProps {
     uid: string;
@@ -45,7 +46,7 @@ export default function AvatarUpload({ uid, url, onUploadComplete }: AvatarUploa
 
         } catch (error) {
             console.error('Error uploading avatar:', error);
-            alert('Error uploading avatar!');
+            showToast({ message: 'Error uploading avatar!', type: 'error' });
         } finally {
             setUploading(false);
         }
