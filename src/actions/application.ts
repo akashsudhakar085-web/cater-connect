@@ -1,7 +1,7 @@
 'use server';
 
 import { db } from '@/db';
-import { applications, jobs, users } from '@/db/schema';
+import { applications, jobs, users, ratings } from '@/db/schema';
 import { createClient } from '@/lib/supabase-server';
 import { eq, and, desc } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
@@ -204,6 +204,9 @@ export async function rejectPendingApplications(jobId: string) {
 
 export async function getApplicationsForJob(jobId: string) {
     try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+
         const results = await db.select({
             application: applications,
             worker: users
@@ -213,7 +216,26 @@ export async function getApplicationsForJob(jobId: string) {
             .where(eq(applications.jobId, jobId as any))
             .orderBy(desc(applications.createdAt));
 
-        return results;
+        // Enhancing results with 'hasRated' flag
+        const enhancedResults = await Promise.all(results.map(async (item) => {
+            let hasRated = false;
+            if (user) {
+                const rating = await db.select().from(ratings).where(
+                    and(
+                        eq(ratings.jobId, jobId as any),
+                        eq(ratings.raterId, user.id as any),
+                        eq(ratings.ratedUserId, item.worker.id as any)
+                    )
+                ).limit(1);
+                hasRated = rating.length > 0;
+            }
+            return {
+                ...item,
+                hasRated
+            };
+        }));
+
+        return enhancedResults;
     } catch (error) {
         console.error('DATABASE ERROR in getApplicationsForJob:', error);
         return [];

@@ -77,12 +77,9 @@ export function ApplicationManager({ jobId, isPro }: { jobId: string, isPro: boo
                     {applications.map((item) => {
                         const app = item.application;
                         const worker = item.worker;
+                        const hasRated = item.hasRated;
 
                         const openWhatsApp = () => {
-                            if (!isPro) {
-                                setShowProModal(true);
-                                return;
-                            }
                             if (!worker?.phone) return alert('No WhatsApp number provided by worker');
                             const msg = encodeURIComponent(`Hi ${worker.fullName}, this is regarding your application for the catering gig on Cater Connect!`);
                             window.open(`https://wa.me/${worker.phone.replace(/\D/g, '')}?text=${msg}`, '_blank');
@@ -109,26 +106,36 @@ export function ApplicationManager({ jobId, isPro }: { jobId: string, isPro: boo
                                 </div>
 
                                 <div className="flex gap-2 items-center">
-                                    <button
-                                        onClick={openWhatsApp}
-                                        className="py-2.5 px-4 rounded-xl bg-green-500 text-white hover:bg-green-600 transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-green-500/20"
-                                    >
-                                        <MessageCircle size={16} />
-                                        <span className="text-[10px] font-black italic uppercase tracking-widest">Hire</span>
-                                    </button>
+                                    {isPro && (
+                                        <button
+                                            onClick={openWhatsApp}
+                                            className="py-2.5 px-4 rounded-xl bg-green-500 text-white hover:bg-green-600 transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-green-500/20"
+                                        >
+                                            <MessageCircle size={16} />
+                                            <span className="text-[10px] font-black italic uppercase tracking-widest">Hire</span>
+                                        </button>
+                                    )}
                                     {/* Actions */}
                                     <div className="flex gap-2">
                                         {app.status === 'PENDING' && (
                                             <>
                                                 <button
-                                                    onClick={() => handleStatus(app.id, 'ACCEPTED')}
+                                                    onClick={async () => {
+                                                        // Optimistic Update
+                                                        setApplications(prev => prev.map(p => p.application.id === app.id ? { ...p, application: { ...p.application, status: 'ACCEPTED' } } : p));
+                                                        await handleStatus(app.id, 'ACCEPTED');
+                                                    }}
                                                     className="p-2 bg-green-500/10 text-green-400 rounded-full hover:bg-green-500/20 hover:scale-105 transition-all"
                                                     title="Accept"
                                                 >
                                                     <Check size={16} strokeWidth={3} />
                                                 </button>
                                                 <button
-                                                    onClick={() => handleStatus(app.id, 'REJECTED')}
+                                                    onClick={async () => {
+                                                        // Optimistic Update
+                                                        setApplications(prev => prev.map(p => p.application.id === app.id ? { ...p, application: { ...p.application, status: 'REJECTED' } } : p));
+                                                        await handleStatus(app.id, 'REJECTED');
+                                                    }}
                                                     className="p-2 bg-red-500/10 text-red-400 rounded-full hover:bg-red-500/20 hover:scale-105 transition-all"
                                                     title="Reject"
                                                 >
@@ -139,7 +146,10 @@ export function ApplicationManager({ jobId, isPro }: { jobId: string, isPro: boo
 
                                         {app.status === 'ACCEPTED' && (
                                             <button
-                                                onClick={() => handleStatus(app.id, 'STARTED')}
+                                                onClick={async () => {
+                                                    setApplications(prev => prev.map(p => p.application.id === app.id ? { ...p, application: { ...p.application, status: 'STARTED' } } : p));
+                                                    await handleStatus(app.id, 'STARTED');
+                                                }}
                                                 className="px-3 py-1.5 bg-blue-500/20 text-blue-400 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-blue-500/30 transition-all flex items-center gap-1"
                                             >
                                                 Start Job
@@ -148,7 +158,10 @@ export function ApplicationManager({ jobId, isPro }: { jobId: string, isPro: boo
 
                                         {app.status === 'STARTED' && (
                                             <button
-                                                onClick={() => handleStatus(app.id, 'COMPLETED')}
+                                                onClick={async () => {
+                                                    setApplications(prev => prev.map(p => p.application.id === app.id ? { ...p, application: { ...p.application, status: 'COMPLETED' } } : p));
+                                                    await handleStatus(app.id, 'COMPLETED');
+                                                }}
                                                 className="px-3 py-1.5 bg-purple-500/20 text-purple-400 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-purple-500/30 transition-all flex items-center gap-1"
                                             >
                                                 Complete
@@ -156,18 +169,23 @@ export function ApplicationManager({ jobId, isPro }: { jobId: string, isPro: boo
                                         )}
 
                                         {app.status === 'COMPLETED' && (
-                                            <button
-                                                onClick={() => setRatingModal({
-                                                    show: true,
-                                                    jobId,
-                                                    workerId: app.workerId,
-                                                    workerName: worker?.fullName || 'Worker'
-                                                })}
-                                                disabled={false} // Would check if rated
-                                                className="px-3 py-1.5 bg-yellow-500/20 text-yellow-400 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-yellow-500/30 transition-all flex items-center gap-1"
-                                            >
-                                                Rate Worker
-                                            </button>
+                                            !hasRated ? (
+                                                <button
+                                                    onClick={() => setRatingModal({
+                                                        show: true,
+                                                        jobId,
+                                                        workerId: app.workerId,
+                                                        workerName: worker?.fullName || 'Worker'
+                                                    })}
+                                                    className="px-3 py-1.5 bg-yellow-500/20 text-yellow-400 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-yellow-500/30 transition-all flex items-center gap-1"
+                                                >
+                                                    Rate Worker
+                                                </button>
+                                            ) : (
+                                                <div className="px-3 py-1.5 bg-white/5 text-white/40 rounded-lg text-xs font-black uppercase tracking-widest flex items-center gap-1 cursor-default">
+                                                    Rated
+                                                </div>
+                                            )
                                         )}
                                     </div>
                                 </div>
