@@ -182,24 +182,30 @@ export async function getOwnerJobApplications() {
 
 
 export async function rejectPendingApplications(jobId: string) {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
+    try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return { success: false, message: 'Not authenticated' };
 
-    // Verify ownership
-    const job = await db.select().from(jobs).where(eq(jobs.id, jobId as any)).limit(1);
-    if (!job.length || job[0].ownerId !== user.id) throw new Error('Unauthorized');
+        // Verify ownership
+        const job = await db.select().from(jobs).where(eq(jobs.id, jobId as any)).limit(1);
+        if (!job.length || job[0].ownerId !== user.id) return { success: false, message: 'Unauthorized' };
 
-    await db.update(applications)
-        .set({ status: 'REJECTED' })
-        .where(
-            and(
-                eq(applications.jobId, jobId as any),
-                eq(applications.status, 'PENDING')
-            )
-        );
+        await db.update(applications)
+            .set({ status: 'REJECTED' })
+            .where(
+                and(
+                    eq(applications.jobId, jobId as any),
+                    eq(applications.status, 'PENDING')
+                )
+            );
 
-    revalidatePath('/dashboard');
+        revalidatePath('/dashboard');
+        return { success: true, message: 'All pending applications rejected' };
+    } catch (error: any) {
+        console.error('Reject pending error:', error);
+        return { success: false, message: error.message || 'Failed to reject applications' };
+    }
 }
 
 export async function getApplicationsForJob(jobId: string) {

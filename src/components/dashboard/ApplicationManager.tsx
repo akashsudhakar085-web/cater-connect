@@ -53,10 +53,14 @@ export function ApplicationManager({ jobId, isPro }: { jobId: string, isPro: boo
     const handleClearPending = async () => {
         if (!confirm('Are you sure you want to reject all pending applications?')) return;
         try {
-            await rejectPendingApplications(jobId);
-            showToast({ message: 'All pending applications rejected', type: 'success' });
+            const result = await rejectPendingApplications(jobId);
+            if (result.success) {
+                showToast({ message: result.message || 'All pending applications rejected', type: 'success' });
+            } else {
+                showToast({ message: result.message || 'Failed to clear applications', type: 'error' });
+            }
         } catch (error) {
-            showToast({ message: 'Failed to clear applications', type: 'error' });
+            showToast({ message: 'An error occurred', type: 'error' });
         }
     };
 
@@ -92,124 +96,143 @@ export function ApplicationManager({ jobId, isPro }: { jobId: string, isPro: boo
                         };
 
                         return (
-                            <div key={app.id} className="glass p-4 rounded-2xl flex items-center justify-between border-white/5 hover:border-white/10 transition-all">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-primary">
-                                        <User size={20} />
-                                    </div>
-                                    <div>
-                                        <p className="font-bold text-sm tracking-tight">{worker?.fullName || 'Anonymous Worker'}</p>
-                                        <div className="flex items-center gap-1 mb-1">
-                                            <StarRating rating={Number(worker?.averageRating || 0)} size={10} />
-                                            <span className="text-[9px] text-white/40 underline">({worker?.ratingCount || 0} reviews)</span>
+                            <div key={app.id} className="relative glass p-5 rounded-2xl border-white/5 hover:border-white/10 transition-all">
+                                <div className="flex items-start justify-between gap-4">
+                                    {/* Left: Worker Info */}
+                                    <div className="flex items-start gap-4 flex-1">
+                                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center flex-shrink-0">
+                                            <User size={24} className="text-primary" />
                                         </div>
-                                        <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-tighter ${app.status === 'ACCEPTED' ? 'bg-green-500/20 text-green-400' :
-                                            'bg-yellow-500/20 text-yellow-500'
-                                            }`}>
-                                            {app.status}
-                                        </span>
+                                        <div className="flex-1 min-w-0">
+                                            <h4 className="font-bold text-base tracking-tight mb-1">{worker?.fullName || 'Anonymous Worker'}</h4>
+
+                                            {/* Star Rating - Prominent */}
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <StarRating rating={Number(worker?.averageRating || 0)} size={14} />
+                                                <span className="text-xs text-white/40">({worker?.ratingCount || 0} reviews)</span>
+                                            </div>
+
+                                            {/* Status Badge */}
+                                            <div className="flex items-center gap-2">
+                                                <span className={`text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-wider ${app.status === 'COMPLETED' ? 'bg-purple-500/20 text-purple-400' :
+                                                        app.status === 'ACCEPTED' ? 'bg-green-500/20 text-green-400' :
+                                                            app.status === 'STARTED' ? 'bg-blue-500/20 text-blue-400' :
+                                                                app.status === 'REJECTED' ? 'bg-red-500/20 text-red-400' :
+                                                                    'bg-yellow-500/20 text-yellow-500'
+                                                    }`}>
+                                                    {app.status}
+                                                </span>
+                                                {hasRated && app.status === 'COMPLETED' && (
+                                                    <span className="text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-wider bg-white/5 text-white/60">
+                                                        RATED ✓
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
 
-                                <div className="flex gap-2 items-center">
-                                    {isPro && (
-                                        <button
-                                            onClick={openWhatsApp}
-                                            className="py-2.5 px-4 rounded-xl bg-green-500 text-white hover:bg-green-600 transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-green-500/20"
-                                        >
-                                            <MessageCircle size={16} />
-                                            <span className="text-[10px] font-black italic uppercase tracking-widest">Hire</span>
-                                        </button>
-                                    )}
-                                    {/* Actions */}
-                                    <div className="flex gap-2">
-                                        {app.status === 'PENDING' && (
-                                            <>
-                                                <button
-                                                    onClick={async () => {
-                                                        // Optimistic Update
-                                                        setApplications(prev => prev.map(p => p.application.id === app.id ? { ...p, application: { ...p.application, status: 'ACCEPTED' } } : p));
-                                                        await handleStatus(app.id, 'ACCEPTED');
-                                                    }}
-                                                    className="p-2 bg-green-500/10 text-green-400 rounded-full hover:bg-green-500/20 hover:scale-105 transition-all"
-                                                    title="Accept"
-                                                >
-                                                    <Check size={16} strokeWidth={3} />
-                                                </button>
-                                                <button
-                                                    onClick={async () => {
-                                                        // Optimistic Update
-                                                        setApplications(prev => prev.map(p => p.application.id === app.id ? { ...p, application: { ...p.application, status: 'REJECTED' } } : p));
-                                                        await handleStatus(app.id, 'REJECTED');
-                                                    }}
-                                                    className="p-2 bg-red-500/10 text-red-400 rounded-full hover:bg-red-500/20 hover:scale-105 transition-all"
-                                                    title="Reject"
-                                                >
-                                                    <X size={16} strokeWidth={3} />
-                                                </button>
-                                            </>
-                                        )}
-
-                                        {app.status === 'ACCEPTED' && (
+                                    {/* Right: Actions */}
+                                    <div className="flex flex-col gap-2 items-end">
+                                        {isPro && app.status !== 'REJECTED' && (
                                             <button
-                                                onClick={async () => {
-                                                    setApplications(prev => prev.map(p => p.application.id === app.id ? { ...p, application: { ...p.application, status: 'STARTED' } } : p));
-                                                    await handleStatus(app.id, 'STARTED');
-                                                }}
-                                                className="px-3 py-1.5 bg-blue-500/20 text-blue-400 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-blue-500/30 transition-all flex items-center gap-1"
+                                                onClick={openWhatsApp}
+                                                className="py-2 px-3 rounded-xl bg-green-500 text-white hover:bg-green-600 transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-green-500/20 text-xs font-black uppercase tracking-widest"
                                             >
-                                                Start Job
+                                                <MessageCircle size={14} />
+                                                Hire
                                             </button>
                                         )}
 
-                                        {app.status === 'STARTED' && (
-                                            <button
-                                                onClick={async () => {
-                                                    setApplications(prev => prev.map(p => p.application.id === app.id ? { ...p, application: { ...p.application, status: 'COMPLETED' } } : p));
-                                                    await handleStatus(app.id, 'COMPLETED');
-                                                }}
-                                                className="px-3 py-1.5 bg-purple-500/20 text-purple-400 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-purple-500/30 transition-all flex items-center gap-1"
-                                            >
-                                                Complete
-                                            </button>
-                                        )}
+                                        {/* Action Buttons */}
+                                        <div className="flex gap-2">
+                                            {app.status === 'PENDING' && (
+                                                <>
+                                                    <button
+                                                        onClick={async () => {
+                                                            setApplications(prev => prev.map(p => p.application.id === app.id ? { ...p, application: { ...p.application, status: 'ACCEPTED' } } : p));
+                                                            await handleStatus(app.id, 'ACCEPTED');
+                                                        }}
+                                                        className="p-2 bg-green-500/10 text-green-400 rounded-full hover:bg-green-500/20 hover:scale-110 transition-all"
+                                                        title="Accept"
+                                                    >
+                                                        <Check size={16} strokeWidth={3} />
+                                                    </button>
+                                                    <button
+                                                        onClick={async () => {
+                                                            setApplications(prev => prev.map(p => p.application.id === app.id ? { ...p, application: { ...p.application, status: 'REJECTED' } } : p));
+                                                            await handleStatus(app.id, 'REJECTED');
+                                                        }}
+                                                        className="p-2 bg-red-500/10 text-red-400 rounded-full hover:bg-red-500/20 hover:scale-110 transition-all"
+                                                        title="Reject"
+                                                    >
+                                                        <X size={16} strokeWidth={3} />
+                                                    </button>
+                                                </>
+                                            )}
 
-                                        {app.status === 'COMPLETED' && (
-                                            !hasRated ? (
-                                                <button
-                                                    onClick={() => setRatingModal({
-                                                        show: true,
-                                                        jobId,
-                                                        workerId: app.workerId,
-                                                        workerName: worker?.fullName || 'Worker'
-                                                    })}
-                                                    className="px-3 py-1.5 bg-yellow-500/20 text-yellow-400 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-yellow-500/30 transition-all flex items-center gap-1"
-                                                >
-                                                    Rate Worker
-                                                </button>
-                                            ) : (
+                                            {app.status === 'ACCEPTED' && (
                                                 <button
                                                     onClick={async () => {
-                                                        const existingRating = await getUserRating(jobId, app.workerId);
-                                                        if (existingRating) {
-                                                            setViewRatingModal({
-                                                                workerName: worker?.fullName || 'Worker',
-                                                                rating: existingRating.rating,
-                                                                review: existingRating.review || ''
-                                                            });
-                                                        }
+                                                        setApplications(prev => prev.map(p => p.application.id === app.id ? { ...p, application: { ...p.application, status: 'STARTED' } } : p));
+                                                        await handleStatus(app.id, 'STARTED');
                                                     }}
-                                                    className="px-3 py-1.5 bg-white/5 text-white/40 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-white/10 transition-all flex items-center gap-1 cursor-pointer"
+                                                    className="px-3 py-1.5 bg-blue-500/20 text-blue-400 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-blue-500/30 transition-all"
                                                 >
-                                                    Rated ✓
+                                                    Start Job
                                                 </button>
-                                            )
-                                        )}
+                                            )}
+
+                                            {app.status === 'STARTED' && (
+                                                <button
+                                                    onClick={async () => {
+                                                        setApplications(prev => prev.map(p => p.application.id === app.id ? { ...p, application: { ...p.application, status: 'COMPLETED' } } : p));
+                                                        await handleStatus(app.id, 'COMPLETED');
+                                                    }}
+                                                    className="px-3 py-1.5 bg-purple-500/20 text-purple-400 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-purple-500/30 transition-all"
+                                                >
+                                                    Complete
+                                                </button>
+                                            )}
+
+                                            {app.status === 'COMPLETED' && (
+                                                !hasRated ? (
+                                                    <button
+                                                        onClick={() => setRatingModal({
+                                                            show: true,
+                                                            jobId,
+                                                            workerId: app.workerId,
+                                                            workerName: worker?.fullName || 'Worker'
+                                                        })}
+                                                        className="px-3 py-1.5 bg-yellow-500/20 text-yellow-400 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-yellow-500/30 transition-all"
+                                                    >
+                                                        Rate Worker
+                                                    </button>
+                                                ) : (
+                                                    <button
+                                                        onClick={async () => {
+                                                            const existingRating = await getUserRating(jobId, app.workerId);
+                                                            if (existingRating) {
+                                                                setViewRatingModal({
+                                                                    workerName: worker?.fullName || 'Worker',
+                                                                    rating: existingRating.rating,
+                                                                    review: existingRating.review || ''
+                                                                });
+                                                            }
+                                                        }}
+                                                        className="px-3 py-1.5 bg-white/5 text-white/40 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-white/10 transition-all cursor-pointer"
+                                                    >
+                                                        View Rating
+                                                    </button>
+                                                )
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
+
+                                {/* Rejected Overlay */}
                                 {app.status === 'REJECTED' && (
-                                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center rounded-xl pointer-events-none">
-                                        <div className="px-3 py-1 bg-red-500/20 text-red-400 rounded-full text-xs font-black uppercase tracking-widest border border-red-500/20 transform -rotate-12">
+                                    <div className="absolute inset-0 bg-black/70 flex items-center justify-center rounded-2xl pointer-events-none">
+                                        <div className="px-4 py-2 bg-red-500/20 text-red-400 rounded-full text-xs font-black uppercase tracking-widest border border-red-500/30 transform -rotate-12 shadow-lg">
                                             Rejected
                                         </div>
                                     </div>

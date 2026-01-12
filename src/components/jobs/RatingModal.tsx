@@ -26,13 +26,17 @@ export function RatingModal({ jobId, ratedUserId, ratedUserName, onClose, onSucc
         }
         setSubmitting(true);
         try {
-            await submitRating(jobId, ratedUserId, rating, review);
-            showToast({ message: 'Rating submitted!', type: 'success' });
-            onSuccess();
-            onClose();
+            const result = await submitRating(jobId, ratedUserId, rating, review);
+            if (result.success) {
+                showToast({ message: result.message || 'Rating submitted!', type: 'success' });
+                onSuccess();
+                onClose();
+            } else {
+                showToast({ message: result.message || 'Failed to submit rating', type: 'error' });
+            }
         } catch (error: any) {
             console.error(error);
-            showToast({ message: error.message, type: 'error' });
+            showToast({ message: 'An error occurred', type: 'error' });
         } finally {
             setSubmitting(false);
         }

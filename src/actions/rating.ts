@@ -13,61 +13,65 @@ export async function submitRating(
     ratingValue: number,
     review: string = ''
 ) {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
 
-    if (!user) throw new Error('Not authenticated');
-    if (ratingValue < 1 || ratingValue > 5) throw new Error('Rating must be 1-5');
+        if (!user) return { success: false, message: 'Not authenticated' };
+        if (ratingValue < 1 || ratingValue > 5) return { success: false, message: 'Rating must be 1-5' };
 
-    // 1. Check if already rated specifically for this job
-    const existing = await db.select()
-        .from(ratings)
-        .where(
-            and(
-                eq(ratings.jobId, jobId as any),
-                eq(ratings.raterId, user.id as any),
-                eq(ratings.ratedUserId, ratedUserId as any)
+        // 1. Check if already rated specifically for this job
+        const existing = await db.select()
+            .from(ratings)
+            .where(
+                and(
+                    eq(ratings.jobId, jobId as any),
+                    eq(ratings.raterId, user.id as any),
+                    eq(ratings.ratedUserId, ratedUserId as any)
+                )
             )
-        )
-        .limit(1);
+            .limit(1);
 
-    if (existing.length > 0) throw new Error('You have already rated this user for this job');
+        if (existing.length > 0) return { success: false, message: 'You have already rated this user for this job' };
 
-    // 2. Insert Rating
-    await db.insert(ratings).values({
-        jobId: jobId as any,
-        raterId: user.id as any,
-        ratedUserId: ratedUserId as any,
-        rating: ratingValue,
-        review: review
-    });
+        // 2. Insert Rating
+        await db.insert(ratings).values({
+            jobId: jobId as any,
+            raterId: user.id as any,
+            ratedUserId: ratedUserId as any,
+            rating: ratingValue,
+            review: review
+        });
 
-    // 3. Update User's Average Rating
-    // We can do this by fetching all ratings for the user and averaging
-    const allRatings = await db.select({ rating: ratings.rating })
-        .from(ratings)
-        .where(eq(ratings.ratedUserId, ratedUserId as any));
+        // 3. Update User's Average Rating
+        const allRatings = await db.select({ rating: ratings.rating })
+            .from(ratings)
+            .where(eq(ratings.ratedUserId, ratedUserId as any));
 
-    const totalStars = allRatings.reduce((sum, r) => sum + r.rating, 0);
-    const count = allRatings.length;
-    const average = count > 0 ? (totalStars / count).toFixed(2) : '0';
+        const totalStars = allRatings.reduce((sum, r) => sum + r.rating, 0);
+        const count = allRatings.length;
+        const average = count > 0 ? (totalStars / count).toFixed(2) : '0';
 
-    await db.update(users)
-        .set({
-            averageRating: average as any,
-            ratingCount: count
-        })
-        .where(eq(users.id, ratedUserId as any));
+        await db.update(users)
+            .set({
+                averageRating: average as any,
+                ratingCount: count
+            })
+            .where(eq(users.id, ratedUserId as any));
 
-    // 4. Notify the rated user
-    await createNotification(
-        ratedUserId,
-        `You received a ${ratingValue}-star rating!`,
-        `/dashboard/profile` // Or a relevant link
-    );
+        // 4. Notify the rated user
+        await createNotification(
+            ratedUserId,
+            `You received a ${ratingValue}-star rating!`,
+            `/dashboard/profile`
+        );
 
-    revalidatePath('/dashboard');
-    return { success: true };
+        revalidatePath('/dashboard');
+        return { success: true, message: 'Rating submitted successfully' };
+    } catch (error: any) {
+        console.error('Submit rating error:', error);
+        return { success: false, message: error.message || 'Failed to submit rating' };
+    }
 }
 
 export async function hasUserRated(jobId: string, ratedUserId: string) {
