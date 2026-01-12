@@ -22,14 +22,14 @@ export function WorkerDashboard({ user }: { user: any }) {
     });
 
     const handleClearCompleted = async () => {
-        if (!confirm('Clear all completed and rejected jobs from your feed?')) return;
+        if (!confirm('Clear all your job applications? This cannot be undone.')) return;
         try {
             const result = await clearCompletedApplications();
             if (result.success) {
-                showToast({ message: result.message || 'Completed jobs cleared', type: 'success' });
+                showToast({ message: result.message || 'All applications cleared', type: 'success' });
                 queryClient.invalidateQueries({ queryKey: ['jobs'] });
             } else {
-                showToast({ message: result.message || 'Failed to clear jobs', type: 'error' });
+                showToast({ message: result.message || 'Failed to clear applications', type: 'error' });
             }
         } catch (error) {
             showToast({ message: 'An error occurred', type: 'error' });
@@ -59,20 +59,18 @@ export function WorkerDashboard({ user }: { user: any }) {
         </div>
     );
 
-    const hasCompletedOrRejected = jobs?.some(item =>
-        item.applicationStatus === 'COMPLETED' || item.applicationStatus === 'REJECTED'
-    );
+    const hasAnyApplications = jobs && jobs.length > 0;
 
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between px-1">
                 <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Intel Feed</h2>
-                {hasCompletedOrRejected && (
+                {hasAnyApplications && (
                     <button
                         onClick={handleClearCompleted}
                         className="text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-300 flex items-center gap-1"
                     >
-                        <span>Clear Completed</span>
+                        <span>Clear All</span>
                     </button>
                 )}
             </div>

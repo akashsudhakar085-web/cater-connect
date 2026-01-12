@@ -65,23 +65,29 @@ export async function getOwnerJobs() {
 }
 
 export async function deleteJob(jobId: string) {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
 
-    if (!user) throw new Error('Not authenticated');
+        if (!user) return { success: false, message: 'Not authenticated' };
 
-    // Verify ownership
-    const job = await db.select().from(jobs).where(eq(jobs.id, jobId as any)).limit(1);
+        // Verify ownership
+        const job = await db.select().from(jobs).where(eq(jobs.id, jobId as any)).limit(1);
 
-    if (!job.length || job[0].ownerId !== user.id) {
-        throw new Error('Unauthorized');
+        if (!job.length || job[0].ownerId !== user.id) {
+            return { success: false, message: 'Unauthorized' };
+        }
+
+        // Delete job (Cascade should handle applications, but let's be safe if not configured)
+        // Actually, lets assume schema handles it or just delete job.
+        await db.delete(jobs).where(eq(jobs.id, jobId as any));
+
+        revalidatePath('/dashboard');
+        return { success: true, message: 'Job deleted successfully' };
+    } catch (error: any) {
+        console.error('Delete job error:', error);
+        return { success: false, message: error.message || 'Failed to delete job' };
     }
-
-    // Delete job (Cascade should handle applications, but let's be safe if not configured)
-    // Actually, lets assume schema handles it or just delete job.
-    await db.delete(jobs).where(eq(jobs.id, jobId as any));
-
-    revalidatePath('/dashboard');
 }
 
 export async function getWorkerJobFeed() {

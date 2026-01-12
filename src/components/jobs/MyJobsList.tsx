@@ -24,11 +24,15 @@ export function MyJobsList({ jobs, isPro }: { jobs: Job[], isPro: boolean }) {
 
     const handleDelete = async (id: string) => {
         try {
-            await deleteJob(id);
-            showToast({ message: 'Job deleted', type: 'success' });
-            if (selectedJob === id) setSelectedJob(null);
+            const result = await deleteJob(id);
+            if (result.success) {
+                showToast({ message: result.message || 'Job deleted', type: 'success' });
+                if (selectedJob === id) setSelectedJob(null);
+            } else {
+                showToast({ message: result.message || 'Failed to delete job', type: 'error' });
+            }
         } catch (error) {
-            showToast({ message: 'Failed to delete job', type: 'error' });
+            showToast({ message: 'An error occurred', type: 'error' });
         }
     };
 

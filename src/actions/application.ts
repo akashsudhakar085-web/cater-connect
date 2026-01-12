@@ -214,23 +214,15 @@ export async function clearCompletedApplications() {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return { success: false, message: 'Not authenticated' };
 
-        // Delete all completed/rejected applications for this worker
+        // Delete ALL applications for this worker (clear entire application history)
         await db.delete(applications)
-            .where(
-                and(
-                    eq(applications.workerId, user.id as any),
-                    or(
-                        eq(applications.status, 'COMPLETED'),
-                        eq(applications.status, 'REJECTED')
-                    )
-                )
-            );
+            .where(eq(applications.workerId, user.id as any));
 
         revalidatePath('/dashboard');
-        return { success: true, message: 'Completed jobs cleared' };
+        return { success: true, message: 'All applications cleared' };
     } catch (error: any) {
-        console.error('Clear completed error:', error);
-        return { success: false, message: error.message || 'Failed to clear completed jobs' };
+        console.error('Clear applications error:', error);
+        return { success: false, message: error.message || 'Failed to clear applications' };
     }
 }
 
