@@ -83,7 +83,7 @@ export function ApplicationManager({ jobId, isPro }: { jobId: string, isPro: boo
             {applications.length === 0 ? (
                 <p className="text-sm text-white/20 italic">No applications yet...</p>
             ) : (
-                <div className="grid gap-2">
+                <div className="flex flex-col gap-3">
                     {applications.map((item) => {
                         const app = item.application;
                         const worker = item.worker;
@@ -99,87 +99,94 @@ export function ApplicationManager({ jobId, isPro }: { jobId: string, isPro: boo
                         };
 
                         return (
-                            <div key={app.id} className="relative glass p-5 rounded-2xl border-white/5 hover:border-white/10 transition-all">
-                                <div className="flex items-start justify-between gap-4">
-                                    {/* Left: Worker Info */}
-                                    <div className="flex items-start gap-4 flex-1">
-                                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center flex-shrink-0">
-                                            <User size={24} className="text-primary" />
+                            <div key={app.id} className="group relative flex items-center justify-between p-4 bg-[#18181B] border border-white/5 rounded-2xl hover:bg-[#202025] transition-all">
+                                {/* Left: Worker Info */}
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center border border-white/10">
+                                        {worker?.avatarUrl ? (
+                                            <img src={worker.avatarUrl} alt={worker.fullName} className="w-full h-full rounded-full object-cover" />
+                                        ) : (
+                                            <User size={20} className="text-white/60" />
+                                        )}
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-bold text-white text-base">{worker?.fullName || 'Anonymous'}</span>
+                                            <div className="flex items-center gap-1 bg-yellow-500/10 px-1.5 py-0.5 rounded text-[10px] text-yellow-500 font-bold border border-yellow-500/20">
+                                                <span>★</span>
+                                                <span>{Number(worker?.averageRating || 0).toFixed(2)}</span>
+                                            </div>
                                         </div>
-                                        <div className="flex-1 min-w-0">
-                                            <h4 className="font-bold text-base tracking-tight mb-1">{worker?.fullName || 'Anonymous Worker'}</h4>
 
-                                            {/* Star Rating - Prominent */}
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <StarRating rating={Number(worker?.averageRating || 0)} size={14} />
-                                                <span className="text-xs text-white/40">({worker?.ratingCount || 0} reviews)</span>
-                                            </div>
-
-                                            {/* Status Badge */}
-                                            <div className="flex items-center gap-2">
-                                                <span className={`text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-wider ${app.status === 'COMPLETED' ? 'bg-purple-500/20 text-purple-400' :
-                                                    app.status === 'ACCEPTED' ? 'bg-green-500/20 text-green-400' :
-                                                        app.status === 'STARTED' ? 'bg-blue-500/20 text-blue-400' :
-                                                            app.status === 'REJECTED' ? 'bg-red-500/20 text-red-400' :
-                                                                'bg-yellow-500/20 text-yellow-500'
-                                                    }`}>
-                                                    {app.status}
-                                                </span>
-                                                {hasRated && app.status === 'COMPLETED' && (
-                                                    <span className="text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-wider bg-white/5 text-white/60">
-                                                        RATED ✓
-                                                    </span>
-                                                )}
-                                            </div>
+                                        {/* Status Badge */}
+                                        <div className="mt-1">
+                                            <span className={`text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-wider border ${app.status === 'COMPLETED' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' :
+                                                    app.status === 'ACCEPTED' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
+                                                        app.status === 'STARTED' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
+                                                            app.status === 'REJECTED' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
+                                                                'bg-yellow-500/10 text-yellow-500 border-yellow-500/20'
+                                                }`}>
+                                                {app.status}
+                                            </span>
                                         </div>
                                     </div>
+                                </div>
 
-                                    {/* Right: Actions */}
-                                    <div className="flex flex-col gap-2 items-end">
-                                        {isPro && app.status !== 'REJECTED' && (
+                                {/* Right: Actions */}
+                                <div className="flex items-center gap-3">
+                                    {/* Action Buttons */}
+                                    {app.status === 'PENDING' ? (
+                                        <div className="flex items-center gap-2">
                                             <button
-                                                onClick={openWhatsApp}
-                                                className="py-2 px-3 rounded-xl bg-green-500 text-white hover:bg-green-600 transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-green-500/20 text-xs font-black uppercase tracking-widest"
+                                                onClick={async () => {
+                                                    setApplications(prev => prev.map(p => p.application.id === app.id ? { ...p, application: { ...p.application, status: 'REJECTED' } } : p));
+                                                    await handleStatus(app.id, 'REJECTED');
+                                                }}
+                                                className="w-8 h-8 flex items-center justify-center rounded-full bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all border border-red-500/20"
+                                                title="Reject"
                                             >
-                                                <MessageCircle size={14} />
-                                                Hire
+                                                <X size={14} strokeWidth={3} />
                                             </button>
-                                        )}
-
-                                        {/* Action Buttons */}
-                                        <div className="flex gap-2">
-                                            {app.status === 'PENDING' && (
-                                                <>
+                                            <button
+                                                onClick={async () => {
+                                                    setApplications(prev => prev.map(p => p.application.id === app.id ? { ...p, application: { ...p.application, status: 'ACCEPTED' } } : p));
+                                                    await handleStatus(app.id, 'ACCEPTED');
+                                                }}
+                                                className="px-4 py-1.5 bg-green-500 text-white rounded-lg text-xs font-bold uppercase tracking-wide hover:bg-green-600 transition-all shadow-lg shadow-green-500/20"
+                                            >
+                                                Accept
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            {/* Communication Buttons (Pro Only Gate Logic is in Parent) */}
+                                            {isPro && app.status !== 'REJECTED' && (
+                                                <div className="flex items-center gap-2 mr-2">
                                                     <button
-                                                        onClick={async () => {
-                                                            setApplications(prev => prev.map(p => p.application.id === app.id ? { ...p, application: { ...p.application, status: 'ACCEPTED' } } : p));
-                                                            await handleStatus(app.id, 'ACCEPTED');
-                                                        }}
-                                                        className="p-2 bg-green-500/10 text-green-400 rounded-full hover:bg-green-500/20 hover:scale-110 transition-all"
-                                                        title="Accept"
+                                                        onClick={() => window.location.href = `tel:${worker?.phone}`}
+                                                        className="w-8 h-8 rounded-full bg-white/5 text-white/60 hover:text-white hover:bg-white/10 flex items-center justify-center transition-all border border-white/5"
+                                                        title="Call"
                                                     >
-                                                        <Check size={16} strokeWidth={3} />
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
                                                     </button>
                                                     <button
-                                                        onClick={async () => {
-                                                            setApplications(prev => prev.map(p => p.application.id === app.id ? { ...p, application: { ...p.application, status: 'REJECTED' } } : p));
-                                                            await handleStatus(app.id, 'REJECTED');
-                                                        }}
-                                                        className="p-2 bg-red-500/10 text-red-400 rounded-full hover:bg-red-500/20 hover:scale-110 transition-all"
-                                                        title="Reject"
+                                                        onClick={openWhatsApp}
+                                                        className="w-8 h-8 rounded-full bg-white/5 text-white/60 hover:text-green-400 hover:bg-green-500/10 flex items-center justify-center transition-all border border-white/5"
+                                                        title="WhatsApp"
                                                     >
-                                                        <X size={16} strokeWidth={3} />
+                                                        <MessageCircle size={14} />
                                                     </button>
-                                                </>
+                                                </div>
                                             )}
 
+                                            {/* Primary Status Action */}
                                             {app.status === 'ACCEPTED' && (
                                                 <button
                                                     onClick={async () => {
                                                         setApplications(prev => prev.map(p => p.application.id === app.id ? { ...p, application: { ...p.application, status: 'STARTED' } } : p));
                                                         await handleStatus(app.id, 'STARTED');
                                                     }}
-                                                    className="px-3 py-1.5 bg-blue-500/20 text-blue-400 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-blue-500/30 transition-all"
+                                                    className="px-6 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-blue-500 shadow-lg shadow-blue-600/20 transition-all"
                                                 >
                                                     Start Job
                                                 </button>
@@ -191,9 +198,9 @@ export function ApplicationManager({ jobId, isPro }: { jobId: string, isPro: boo
                                                         setApplications(prev => prev.map(p => p.application.id === app.id ? { ...p, application: { ...p.application, status: 'COMPLETED' } } : p));
                                                         await handleStatus(app.id, 'COMPLETED');
                                                     }}
-                                                    className="px-3 py-1.5 bg-purple-500/20 text-purple-400 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-purple-500/30 transition-all"
+                                                    className="px-6 py-2 bg-purple-600 text-white rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-purple-500 shadow-lg shadow-purple-600/20 transition-all"
                                                 >
-                                                    Complete
+                                                    Mark Done
                                                 </button>
                                             )}
 
@@ -206,9 +213,9 @@ export function ApplicationManager({ jobId, isPro }: { jobId: string, isPro: boo
                                                             workerId: app.workerId,
                                                             workerName: worker?.fullName || 'Worker'
                                                         })}
-                                                        className="px-3 py-1.5 bg-yellow-500/20 text-yellow-400 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-yellow-500/30 transition-all"
+                                                        className="px-6 py-2 bg-yellow-500 text-black rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-yellow-400 shadow-lg shadow-yellow-500/20 transition-all"
                                                     >
-                                                        Rate Worker
+                                                        Rate
                                                     </button>
                                                 ) : (
                                                     <button
@@ -222,24 +229,15 @@ export function ApplicationManager({ jobId, isPro }: { jobId: string, isPro: boo
                                                                 });
                                                             }
                                                         }}
-                                                        className="px-3 py-1.5 bg-white/5 text-white/40 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-white/10 transition-all cursor-pointer"
+                                                        className="px-6 py-2 bg-white/10 text-white rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-white/20 border border-white/5 transition-all"
                                                     >
-                                                        View Rating
+                                                        Rated ✓
                                                     </button>
                                                 )
                                             )}
-                                        </div>
-                                    </div>
+                                        </>
+                                    )}
                                 </div>
-
-                                {/* Rejected Overlay */}
-                                {app.status === 'REJECTED' && (
-                                    <div className="absolute inset-0 bg-black/70 flex items-center justify-center rounded-2xl pointer-events-none">
-                                        <div className="px-4 py-2 bg-red-500/20 text-red-400 rounded-full text-xs font-black uppercase tracking-widest border border-red-500/30 transform -rotate-12 shadow-lg">
-                                            Rejected
-                                        </div>
-                                    </div>
-                                )}
                             </div>
                         );
                     })}
