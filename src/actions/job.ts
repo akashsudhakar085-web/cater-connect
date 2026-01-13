@@ -78,8 +78,10 @@ export async function deleteJob(jobId: string) {
             return { success: false, message: 'Unauthorized' };
         }
 
-        // Delete job (Cascade should handle applications, but let's be safe if not configured)
-        // Actually, lets assume schema handles it or just delete job.
+        // Delete associated applications first to prevent foreign key constraint errors
+        await db.delete(applications).where(eq(applications.jobId, jobId as any));
+
+        // Delete the job
         await db.delete(jobs).where(eq(jobs.id, jobId as any));
 
         revalidatePath('/dashboard');
