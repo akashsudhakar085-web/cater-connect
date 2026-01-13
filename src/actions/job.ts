@@ -1,7 +1,7 @@
 'use server';
 
 import { db } from '@/db';
-import { jobs, users, applications } from '@/db/schema';
+import { jobs, users, applications, ratings } from '@/db/schema';
 import { createClient } from '@/lib/supabase-server';
 import { redirect } from 'next/navigation';
 import { eq, desc, and } from 'drizzle-orm';
@@ -80,6 +80,9 @@ export async function deleteJob(jobId: string) {
 
         // Delete associated applications first to prevent foreign key constraint errors
         await db.delete(applications).where(eq(applications.jobId, jobId as any));
+
+        // Delete associated ratings (Fix for foreign key constraint)
+        await db.delete(ratings).where(eq(ratings.jobId, jobId as any));
 
         // Delete the job
         await db.delete(jobs).where(eq(jobs.id, jobId as any));
